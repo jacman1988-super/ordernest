@@ -1,0 +1,14 @@
+import {readFile,writeFile,mkdir} from 'node:fs/promises';
+import vm from 'node:vm';
+const here=new URL('./',import.meta.url);
+const sources=await Promise.all(['core.mjs','fixtures.mjs','exports.mjs','labels.mjs','ui.mjs'].map(file=>readFile(new URL(file,here),'utf8')));
+const runtime='(()=>{\n"use strict";\n'+sources.map(source=>source.replace(/^import .*;\r?\n/gm,'').replace(/^export /gm,'')).join('\n')+'\n})();\n';
+new vm.Script(runtime);
+await mkdir(new URL('dist/',here),{recursive:true});
+await writeFile(new URL('dist/browser-runtime.js',here),runtime);
+const [html,baseCss,formCss]=await Promise.all(['dist/index.html','dist/style.css','dist/form.css'].map(file=>readFile(new URL(file,here),'utf8')));
+const css=baseCss.split('/* OrderNest form extension */')[0]+'/* OrderNest form extension */\n'+formCss;
+await writeFile(new URL('dist/style.css',here),css);
+const standalone=html.replace('<link rel="stylesheet" href="/style.css">',`<style>${css}</style>`).replace('<script src="/browser-runtime.js" defer></script>','').replace('</body>',`<script>${runtime.replace(/<\/script/gi,'<\\/script')}</script></body>`);
+await writeFile(new URL('../OrderNest-demo.html',here),standalone);
+process.stdout.write('Built local page and standalone OrderNest-demo.html\n');

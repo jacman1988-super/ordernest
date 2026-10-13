@@ -1,0 +1,7 @@
+.env
+.env.*
+!.env.example
+.local-ai/
+node_modules/
+*.log
+private/
