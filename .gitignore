@@ -1,0 +1,7 @@
+.local-ai/
+.env
+.env.*
+node_modules/
+*.log
+private/
+OrderNest-Sandbox-*.json
