@@ -2,14 +2,17 @@ import {readFile,writeFile} from 'node:fs/promises';
 import {randomUUID} from 'node:crypto';
 import {hidden} from './sandbox-local.mjs';
 import {createUnpaidSandboxFixture} from './sandbox-fixture.mjs';
+import {fileURLToPath} from 'node:url';
+import {resolve} from 'node:path';
+import {setupFailure} from './setup-errors.mjs';
 
 const origin='http://127.0.0.1:8802';
 const stateFile=new URL('../OrderNest-Sandbox-test-setup.json',import.meta.url);
 const recordsFile=new URL('../OrderNest-Sandbox-records.json',import.meta.url);
 const verificationFile=new URL('../OrderNest-Sandbox-live-verification.json',import.meta.url);
 const save=(url,data)=>writeFile(url,JSON.stringify(data,null,2)+'\n');
-async function main(){
-  process.stdout.write('OrderNest — pierwsze zamówienie testowe\nTylko PayPal Sandbox: 1,00 PLN, bez zatwierdzania lub pobierania płatności.\nPozostaw dotychczasowe okno OrderNest otwarte.\n\n');
+export async function prepareSandbox({clientId,clientSecret,singleWindow=false}={}){
+  process.stdout.write('OrderNest — pierwsze zamówienie testowe\nTylko PayPal Sandbox: 1,00 PLN, bez zatwierdzania lub pobierania płatności.\n'+(singleWindow?'Pozostaw TO okno otwarte.':'Pozostaw dotychczasowe okno OrderNest otwarte.')+'\n\n');
   const statusResponse=await fetch(origin+'/api/status',{signal:AbortSignal.timeout(10000)});
   const status=await statusResponse.json();
   if(!statusResponse.ok||!status.sandboxConfigured)throw new Error('ORDERNEST_SANDBOX_NOT_RUNNING');
@@ -19,11 +22,10 @@ async function main(){
   if(setup.environment!=='sandbox'||!/^[a-f0-9-]{36}$/.test(setup.requestId))throw new Error('SANDBOX_SETUP_FILE_INVALID');
   if(!setup.createdOrder){
     if(setup.createAttemptedAtUtc)throw new Error('SANDBOX_SETUP_PREVIOUS_OUTCOME_UNKNOWN');
-    let clientId=await hidden('Client ID Sandbox (ukryty): ');
-    let clientSecret=await hidden('Secret Sandbox (ukryty): ');
+    clientId??=await hidden('Client ID Sandbox (ukryty): ');
+    clientSecret??=await hidden('Secret Sandbox (ukryty): ');
     if(!clientId||!clientSecret)throw new Error('SANDBOX_SETUP_CREDENTIALS_REQUIRED');
-    setup.createAttemptedAtUtc=new Date().toISOString();await save(stateFile,setup);
-    try{setup.createdOrder=await createUnpaidSandboxFixture({clientId,clientSecret,requestId:setup.requestId});}
+    try{setup.createdOrder=await createUnpaidSandboxFixture({clientId,clientSecret,requestId:setup.requestId,beforeCreate:async()=>{setup.createAttemptedAtUtc=new Date().toISOString();await save(stateFile,setup);}});}
     finally{clientId='';clientSecret='';}
     setup.createdAtUtc=new Date().toISOString();await save(stateFile,setup);
   }else process.stdout.write('Używam już utworzonego zamówienia. Nie tworzę duplikatu.\n');
@@ -43,8 +45,7 @@ async function main(){
   await save(verificationFile,evidence);
   process.stdout.write('GOTOWE: PayPal Sandbox odczytany. Jedno zamówienie oczekujące, zero pobranych płatności.\n'+(result.modelUsed?'Lokalny AI również przygotował listę.\n':'Lokalny AI nie był dostępny; wykonano zwykły odczyt.\n')+'Zapisy i potwierdzenie zapisane obok katalogu aplikacji. Klucze nie zostały zapisane.\n');
 }
-main().catch(error=>{
-  const code=String(error.message??'');
-  const safe=/^(SANDBOX_SETUP_[A-Z0-9_]+|ORDERNEST_[A-Z0-9_]+|PAYPAL_HTTP_\d{3})$/.test(code)?code:'LOCAL_CONNECTION_FAILED';
-  process.stdout.write('Nie ukończono testu: '+safe+'\nNie zamykaj dotychczasowego okna OrderNest. Jeśli ID zostało utworzone, jest zachowane do ponownego odczytu.\n');process.exitCode=1;
+if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url))prepareSandbox().catch(error=>{
+  const failure=setupFailure(error);
+  process.stdout.write('Nie ukończono testu: '+failure.code+'\n'+failure.message+'\nJeśli ID zostało utworzone, jest zachowane do ponownego odczytu.\n');process.exitCode=1;
 });
