@@ -46,7 +46,11 @@ cd ordernest
 node --test *.test.mjs
 ```
 
-**38 distinct offline/injected checks passed**, plus actual local HTTP, model and Chrome validation. The actual Sandbox waiting-order case is separate evidence. Downloaded HTTP text/JSON contents were verified; automated Chrome file-save completion and physical mobile hardware were not verified.
+**45 offline/injected checks passed** on October 15, plus the recorded October 13 actual local HTTP, model and Chrome validation. The actual Sandbox waiting-order case is separate evidence. Downloaded HTTP text/JSON contents were verified; automated Chrome file-save completion and physical mobile hardware were not verified.
+
+Version 0.4 refreshes each current Payments v2 capture using a read-only GET before classifying the order. It checks capture identity, currency, gross amount and any related order ID; a read failure cannot fall back to an embedded completed status. Refund and partial-refund statuses require review. Four injected capture tests cover this change; completed/refunded provider transactions remain unverified. See [the detailed setup](ordernest/README.md#october-15-improvement-refresh-the-capture-not-just-the-order).
+
+For actual acceptance checks, start the application with your private Sandbox credentials, then run `ordernest/Sprawdz-Scenariusze-Sandbox.cmd`. It reads supplied actual waiting/completed/refunded order IDs through the existing application, compares a completed 1.00 PLN capture against both 1.00 and 2.00 PLN shop records, and writes a redacted local report. Missing cases remain `not_run`. This tool never creates, approves, captures or refunds a payment and does not call AI. The existing English video documents the October 13 workflow, not this update.
 
 Local prototype: no production merchant integration, background synchronization, exchange-rate conversion, refund net calculation or automatic fulfilment. Fixed Sandbox API origin only; no Live endpoint. The edited demo film uses authentic application captures with synthetic English narration and is labelled as an edited walkthrough, not continuous screen recording.
 
