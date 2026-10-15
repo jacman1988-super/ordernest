@@ -6,6 +6,8 @@ A calm order-review workspace that reads **actual PayPal Sandbox order details**
 
 On 13 October 2026, a separate opt-in helper created one unpaid Sandbox order for **1.00 PLN**. The application read the actual order and the local model produced a checklist. Chrome showed **one waiting order, zero completed captures**. Editing 1.00 to 2.00 cleared stale results; another actual provider/model run still showed an unpaid order. No real money was used.
 
+On October 15, the participant privately ran the new one-window launcher. OAuth, a new unpaid order, its actual Sandbox read and the local-AI checklist succeeded. An independent read-only HTTP check confirmed one waiting order with zero captures. Authentication rejection and stopped-server errors are handled separately; failed OAuth does not mark an order as created or attempted.
+
 The optional six-order illustrative shop is **fictional data**, including match, mismatch, currency and refund examples. Actual completed, mismatched or refunded Sandbox payments have not been verified. Offline checks do not substitute for actual provider evidence.
 
 ## Quick start — ordinary review
@@ -26,8 +28,8 @@ The standalone `OrderNest-demo.html` is a fixture preview; AI and PayPal require
 
 1. In `ordernest`, run `Setup-Local-AI.ps1` to obtain the official pinned Qwen3-1.7B Q8_0 model (about 1.8 GB) and llama.cpp b11552 runtime. SHA-256 is checked before extraction; nothing is installed or executed automatically. If scripts are blocked, use the documented manual download steps in [the detailed setup](ordernest/README.md#optional-existing-local-ai). Do not change script policy.
 2. Obtain your own free [PayPal Developer Sandbox credentials](https://developer.paypal.com/dashboard/applications/sandbox). Remain in **Sandbox**, open an existing application or create one through PayPal's own setup, and keep its Client ID and Secret private. No credentials from this project's author are required or distributed.
-3. Close the ordinary OrderNest server if running. Double-click `ordernest/Uruchom-Sandbox.cmd` in Windows Explorer. Privately enter your Sandbox Client ID and Secret. The local model and server start; credentials remain in process memory.
-4. Keep that window open. Double-click `ordernest/Przygotuj-Zamowienie-Sandbox.cmd`. Enter the same private Sandbox credentials. This opt-in helper creates **one unpaid 1.00 PLN Sandbox order** and verifies the actual read and AI report through the existing server. It provides no payment source and never calls approve, authorize, capture or refund endpoints. A successful run prints the order ID and `GOTOWE`.
+3. Close any ordinary OrderNest server. Double-click `ordernest/Uruchom-Test-Sandbox.cmd` in Windows Explorer. Enter the Client ID and Secret from the same Sandbox application once in hidden local prompts. OAuth is checked before startup, with up to three attempts to correct rejected credentials. Keys remain in process memory.
+4. The same window starts the local model and application, creates or reuses **one unpaid 1.00 PLN Sandbox order**, and verifies its actual read and AI checklist. It provides no payment source and never calls approve, authorize, capture or refund endpoints. Wait for `GOTOWE`, then leave this window open. Stop with Ctrl+C. The older two-window launchers remain optional alternatives in the detailed instructions.
 5. Open http://127.0.0.1:8802/. Select English. Expand **Import your order records**, then **Advanced import**; paste the contents of the generated `OrderNest-Sandbox-records.json` in the repository root and click **Load records**. Select **PayPal Sandbox — read only** and click **Prepare with local AI**. Expect one waiting order, zero completed captures and a draft checklist.
 6. Change the expected amount: the old result and download links clear. Review again. Use **Download readable report** or JSON to retain the source-labelled snapshot. These are test-money records only.
 
@@ -46,7 +48,7 @@ cd ordernest
 node --test *.test.mjs
 ```
 
-**45 offline/injected checks passed** on October 15, plus the recorded October 13 actual local HTTP, model and Chrome validation. The actual Sandbox waiting-order case is separate evidence. Downloaded HTTP text/JSON contents were verified; automated Chrome file-save completion and physical mobile hardware were not verified.
+**48 offline/injected checks passed** on October 15, plus the recorded October 13 actual local HTTP, model and Chrome validation. The actual Sandbox waiting-order case is separate evidence. Downloaded HTTP text/JSON contents were verified; automated Chrome file-save completion and physical mobile hardware were not verified.
 
 Version 0.4 refreshes each current Payments v2 capture using a read-only GET before classifying the order. It checks capture identity, currency, gross amount and any related order ID; a read failure cannot fall back to an embedded completed status. Refund and partial-refund statuses require review. Four injected capture tests cover this change; completed/refunded provider transactions remain unverified. See [the detailed setup](ordernest/README.md#october-15-improvement-refresh-the-capture-not-just-the-order).
 
