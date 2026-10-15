@@ -70,7 +70,7 @@ export function createHandler({port=8802,clientId,clientSecret,reader,decide=cre
       } finally {clearTimeout(timeout);res.off('close',disconnected);}
     } catch(error) {
       const code=String(error?.message??'');
-      const safe=/^PAYPAL_HTTP_\d{3}$/.test(code)||['PAYPAL_INVALID_TOKEN','PAYPAL_INVALID_JSON','PAYPAL_RESPONSE_LIMIT','INVALID_PROVIDER_ORDER','INVALID_MODEL_RESPONSE','INVALID_MODEL_ACTION','LOCAL_MODEL_UNAVAILABLE','AGENT_STEP_LIMIT'].includes(code)?code:'REQUEST_FAILED';
+      const safe=/^PAYPAL_HTTP_\d{3}$/.test(code)||['PAYPAL_INVALID_TOKEN','PAYPAL_INVALID_JSON','PAYPAL_RESPONSE_LIMIT','PAYPAL_INVALID_CAPTURE','INVALID_PROVIDER_ORDER','INVALID_MODEL_RESPONSE','INVALID_MODEL_ACTION','LOCAL_MODEL_UNAVAILABLE','AGENT_STEP_LIMIT'].includes(code)?code:'REQUEST_FAILED';
       send(502,{error:safe});
     }
   };

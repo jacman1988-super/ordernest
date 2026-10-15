@@ -22,9 +22,29 @@ export function createSandboxReader({clientId,clientSecret,fetchImpl=fetch,clock
       const bearer=await authenticate(signal);
       const response=await fetchImpl(origin+'/v2/checkout/orders/'+id,{method:'GET',headers:{Authorization:'Bearer '+bearer,Accept:'application/json'},signal,redirect:'error'});
       const raw=await boundedJson(response);
-      return normalizeOrder(raw,id,{source:'sandbox',checkedAt:new Date(clock()).toISOString()});
+      // Validate the bounded order before following capture identifiers. Never
+      // follow provider-supplied URLs or assume an embedded capture is current.
+      const initial=normalizeOrder(raw,id,{source:'sandbox',checkedAt:new Date(clock()).toISOString()});
+      const details=new Map();
+      for(const capture of initial.captures){
+        if(!/^[A-Z0-9]{1,36}$/.test(capture.id))throw new Error('PAYPAL_INVALID_CAPTURE');
+        const r=await fetchImpl(origin+'/v2/payments/captures/'+capture.id,{method:'GET',headers:{Authorization:'Bearer '+bearer,Accept:'application/json'},signal,redirect:'error'});
+        const detail=await boundedJson(r);
+        if(!detail||detail.id!==capture.id||typeof detail.status!=='string'||detail.amount?.currency_code!==capture.currency)throw new Error('PAYPAL_INVALID_CAPTURE');
+        const related=detail.supplementary_data?.related_ids?.order_id;
+        if(related!==undefined&&related!==id)throw new Error('PAYPAL_INVALID_CAPTURE');
+        // Gross capture amounts must agree; refunds are represented by status,
+        // not by silently substituting a smaller net amount.
+        let normalized;
+        try{normalized=normalizeOrder({id,status:raw.status,purchase_units:[{payments:{captures:[detail]}}]},id).captures[0];}
+        catch{throw new Error('PAYPAL_INVALID_CAPTURE');}
+        if(normalized.minor!==capture.minor)throw new Error('PAYPAL_INVALID_CAPTURE');
+        details.set(capture.id,{id:detail.id,status:detail.status,amount:{currency_code:detail.amount.currency_code,value:detail.amount.value}});
+      }
+      const refreshed={id:raw.id,status:raw.status,purchase_units:raw.purchase_units.map(unit=>({payments:{captures:(unit.payments?.captures??[]).map(c=>details.get(c.id)),refunds:unit.payments?.refunds??[]}}))};
+      return {...normalizeOrder(refreshed,id,{source:'sandbox',checkedAt:new Date(clock()).toISOString()}),captureDetailsChecked:details.size};
     }
   });
 }
-// The fixed sandbox origin and sole GET order operation intentionally provide
+// The fixed sandbox origin and GET order/capture operations intentionally provide
 // no creation, capture, refund, transfer, tracking or live-money endpoint.
